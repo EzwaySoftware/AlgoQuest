@@ -1,0 +1,1313 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>AlgoQuest: Cyberpunk Rebellion</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --neon-blue: #00f3ff;
+            --neon-pink: #ff007f;
+            --neon-purple: #bc13fe;
+            --neon-green: #00ff66;
+            --dark-bg: #050510;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #000;
+            color: #fff;
+            font-family: 'Share Tech Mono', monospace;
+            overflow: hidden;
+            touch-action: none; /* Prevent zooming/scrolling on mobile */
+        }
+
+        .pixel-font {
+            font-family: 'Press Start 2P', cursive;
+        }
+
+        .glow-text-blue { text-shadow: 0 0 10px var(--neon-blue), 0 0 20px var(--neon-blue); }
+        .glow-text-pink { text-shadow: 0 0 10px var(--neon-pink), 0 0 20px var(--neon-pink); }
+        .glow-text-green { text-shadow: 0 0 10px var(--neon-green), 0 0 20px var(--neon-green); }
+        .glow-text-red { text-shadow: 0 0 10px #ff3333, 0 0 20px #ff3333; }
+
+        .btn-cyber {
+            background: rgba(0, 20, 40, 0.8);
+            border: 2px solid var(--neon-blue);
+            color: var(--neon-blue);
+            transition: all 0.2s;
+            text-transform: uppercase;
+            box-shadow: 0 0 10px rgba(0, 243, 255, 0.3);
+        }
+        .btn-cyber:hover, .btn-cyber:active {
+            background: var(--neon-blue);
+            color: #000;
+            box-shadow: 0 0 20px var(--neon-blue);
+        }
+
+        /* Scanlines Effect */
+        .scanlines {
+            background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0) 50%, rgba(0,0,0,0.2) 50%, rgba(0,0,0,0.2));
+            background-size: 100% 4px;
+            pointer-events: none;
+            z-index: 100;
+        }
+
+        /* Dialog Box typing animation */
+        .typing-cursor::after {
+            content: '█';
+            animation: blink 1s step-end infinite;
+        }
+        @keyframes blink { 50% { opacity: 0; } }
+
+        #game-canvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        .joystick-base {
+            background: rgba(0, 243, 255, 0.2);
+            border: 2px solid rgba(0, 243, 255, 0.5);
+            border-radius: 50%;
+            touch-action: none;
+        }
+        .joystick-stick {
+            background: rgba(0, 243, 255, 0.8);
+            border-radius: 50%;
+            box-shadow: 0 0 15px var(--neon-blue);
+            transition: transform 0.05s linear;
+        }
+
+        .battle-overlay {
+            background: radial-gradient(circle at center, #1a0b2e 0%, #050510 100%);
+        }
+        
+        /* Custom scrollbar for questions */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #111; }
+        ::-webkit-scrollbar-thumb { background: var(--neon-blue); }
+    </style>
+</head>
+<body>
+
+    <div id="game-container" class="relative w-full h-full">
+        <!-- Game Canvas -->
+        <canvas id="game-canvas"></canvas>
+        <div class="absolute inset-0 scanlines"></div>
+
+        <!-- MAIN MENU -->
+        <div id="screen-menu" class="absolute inset-0 flex flex-col items-center justify-center bg-black/90 z-50 backdrop-blur-sm">
+            <h1 class="pixel-font text-4xl sm:text-6xl text-center glow-text-blue mb-4 leading-tight">
+                ALGOQUEST<br><span class="text-2xl sm:text-4xl glow-text-pink">CYBER REBELLION</span>
+            </h1>
+            
+            <div id="player-name-container" class="mb-8 w-64">
+                <label class="block text-sm text-blue-300 mb-2">IDENTITAS PROGRAMMER:</label>
+                <input type="text" id="player-name-input" value="USER_01" class="w-full bg-gray-900 border border-blue-500 p-2 text-white font-mono text-center outline-none focus:border-pink-500 focus:shadow-[0_0_10px_#ff007f]">
+            </div>
+
+            <div class="flex flex-col gap-4 w-64">
+                <button onclick="startGame()" class="btn-cyber py-3 pixel-font text-sm">MULAI SISTEM</button>
+                <button onclick="toggleAudio()" id="btn-audio" class="btn-cyber py-3 pixel-font text-sm">AUDIO: ON</button>
+                <button onclick="showTutorial()" class="btn-cyber py-3 pixel-font text-sm">CARA RETAS</button>
+            </div>
+            
+            <div class="absolute bottom-4 text-xs text-gray-500">v1.0.0 | Save The Digital World</div>
+        </div>
+
+        <!-- TUTORIAL OVERLAY -->
+        <div id="screen-tutorial" class="hidden absolute inset-0 bg-black/95 z-[60] flex flex-col items-center justify-center p-6">
+            <div class="max-w-md bg-gray-900 border-2 border-purple-500 p-6 rounded text-sm sm:text-base">
+                <h2 class="pixel-font text-purple-400 mb-4 text-center">CARA RETAS (BERMAIN)</h2>
+                <ul class="list-disc pl-5 space-y-2 mb-6 text-gray-300">
+                    <li>Gunakan <b>Analog Kiri</b> (Mobile) atau <b>WASD/Panah</b> (PC) untuk bergerak.</li>
+                    <li>Tabrak robot virus untuk masuk ke mode peretasan (Pertarungan).</li>
+                    <li><b>Minion Robot bergerak!</b> Mereka patroli sendiri dan mengejarmu jika dekat.</li>
+                    <li>Jawab tantangan logika/algoritma sebelum waktu habis!</li>
+                    <li>Jawaban benar = Serang virus. Jawaban salah/waktu habis = Kamu diserang.</li>
+                    <li>Setiap Stage memiliki <b>10 soal eksklusif</b> dengan tingkat kesulitan meningkat (Tier 1–5).</li>
+                    <li>Tombol Heal (Kanan bawah) untuk memulihkan HP menggunakan Item.</li>
+                    <li>Selesaikan 5 Stage Digital untuk menyelamatkan sistem.</li>
+                </ul>
+                <button onclick="hideTutorial()" class="btn-cyber w-full py-2 pixel-font">KEMBALI</button>
+            </div>
+        </div>
+
+        <!-- IN-GAME UI (HUD) -->
+        <div id="ui-hud" class="hidden absolute top-0 left-0 w-full p-4 pointer-events-none z-30 flex justify-between items-start">
+            <!-- Player Stats -->
+            <div class="bg-black/80 border border-blue-500 p-2 rounded pointer-events-auto min-w-[150px]">
+                <div class="pixel-font text-xs text-blue-300 mb-1" id="hud-name">USER</div>
+                <div class="text-xs text-white mb-1">LVL: <span id="hud-level">1</span> | STAGE: <span id="hud-stage">1</span></div>
+                <!-- HP Bar -->
+                <div class="w-full bg-gray-800 h-3 mb-1 rounded overflow-hidden">
+                    <div id="hud-hp-bar" class="bg-green-500 h-full transition-all duration-300" style="width: 100%"></div>
+                </div>
+                <div class="text-[10px] text-gray-400 mb-1 text-right" id="hud-hp-text">100/100</div>
+                <!-- EXP Bar -->
+                <div class="w-full bg-gray-800 h-1 rounded overflow-hidden">
+                    <div id="hud-exp-bar" class="bg-purple-500 h-full transition-all duration-300" style="width: 0%"></div>
+                </div>
+            </div>
+            
+            <button onclick="pauseGame()" class="btn-cyber px-3 py-2 pixel-font text-xs pointer-events-auto">PAUSE</button>
+        </div>
+
+        <!-- MOBILE CONTROLS -->
+        <div id="ui-controls" class="hidden absolute bottom-0 left-0 w-full h-1/2 pointer-events-none z-30">
+            <!-- Joystick -->
+            <div id="joystick-area" class="absolute bottom-8 left-8 w-32 h-32 joystick-base pointer-events-auto flex items-center justify-center">
+                <div id="joystick-stick" class="w-12 h-12 joystick-stick"></div>
+            </div>
+            <!-- Action Buttons -->
+            <div class="absolute bottom-8 right-8 flex gap-4 pointer-events-auto">
+                <button id="btn-heal" class="w-16 h-16 rounded-full bg-green-900/80 border-2 border-green-500 text-green-300 font-bold active:bg-green-600 flex flex-col items-center justify-center shadow-[0_0_15px_rgba(0,255,102,0.5)]">
+                    <span class="text-xs">HEAL</span>
+                    <span id="hud-heal-count" class="text-[10px] mt-1">x3</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- DIALOG BOX -->
+        <div id="screen-dialog" class="hidden absolute bottom-20 left-1/2 transform -translate-x-1/2 w-[90%] max-w-2xl bg-black/90 border-2 border-blue-500 p-4 z-40 flex gap-4 shadow-[0_0_20px_rgba(0,243,255,0.3)]">
+            <div class="w-16 h-16 sm:w-20 sm:h-20 bg-gray-800 border border-gray-600 flex-shrink-0 flex items-center justify-center">
+                <!-- NPC / System Portrait -->
+                <svg id="dialog-portrait" viewBox="0 0 50 50" class="w-full h-full"></svg>
+            </div>
+            <div class="flex-grow flex flex-col justify-between">
+                <div id="dialog-name" class="pixel-font text-xs sm:text-sm text-yellow-400 mb-2">SYSTEM.AI</div>
+                <div id="dialog-text" class="text-sm sm:text-base text-gray-200 typing-cursor min-h-[3rem]">...</div>
+                <div class="text-right text-[10px] text-gray-500 mt-2 blink-soft">TAP / KLIK UNTUK LANJUT</div>
+            </div>
+        </div>
+
+        <!-- BATTLE SCREEN -->
+        <div id="screen-battle" class="hidden absolute inset-0 battle-overlay z-50 flex flex-col">
+            <!-- Battle Scene -->
+            <div class="flex-grow flex items-center justify-between px-4 sm:px-20 relative pt-10">
+                
+                <!-- Player Side -->
+                <div class="text-center z-10 w-28 sm:w-40">
+                    <div id="battle-player-sprite" class="w-24 h-24 sm:w-32 sm:h-32 mx-auto flex items-center justify-center mb-4 transition-transform duration-300">
+                        <svg viewBox="0 0 100 100" class="w-full h-full drop-shadow-[0_0_15px_rgba(0,243,255,1)]">
+                            <!-- FF Style Player (Pixel Person Representation) -->
+                            <rect x="35" y="10" width="30" height="25" fill="#00f3ff"/> <!-- Head -->
+                            <rect x="30" y="15" width="40" height="8" fill="#ff007f"/> <!-- Headband/Goggles -->
+                            <rect x="25" y="40" width="50" height="35" fill="#00f3ff"/> <!-- Body -->
+                            <rect x="10" y="40" width="15" height="25" fill="#00f3ff"/> <!-- L Arm -->
+                            <rect x="75" y="40" width="15" height="25" fill="#00f3ff"/> <!-- R Arm -->
+                            <rect x="30" y="80" width="15" height="20" fill="#00f3ff"/> <!-- L Leg -->
+                            <rect x="55" y="80" width="15" height="20" fill="#00f3ff"/> <!-- R Leg -->
+                            <rect x="75" y="50" width="30" height="5" fill="#fff"/> <!-- Sword -->
+                        </svg>
+                    </div>
+                    <div class="bg-black/80 p-2 border border-blue-500 rounded">
+                        <div class="text-blue-300 font-bold pixel-font text-xs sm:text-sm truncate" id="battle-player-name">USER</div>
+                        <div class="w-full bg-gray-800 h-3 sm:h-4 mt-2">
+                            <div id="battle-player-hp-bar" class="bg-green-500 h-full w-full transition-all duration-300"></div>
+                        </div>
+                        <div id="battle-player-hp-text" class="text-xs mt-1">100/100</div>
+                    </div>
+                </div>
+
+                <!-- VS Text -->
+                <div class="text-3xl sm:text-6xl pixel-font text-yellow-500 italic glow-text-red absolute left-1/2 transform -translate-x-1/2 top-1/3 z-0 opacity-80">VS</div>
+
+                <!-- Enemy Side -->
+                <div class="text-center z-10 w-28 sm:w-40">
+                    <div id="battle-enemy-sprite" class="w-24 h-24 sm:w-32 sm:h-32 mx-auto flex items-center justify-center mb-4 transition-transform duration-300">
+                        <svg viewBox="0 0 100 100" class="w-full h-full" id="enemy-svg">
+                            <!-- Injected via JS based on enemy type -->
+                        </svg>
+                    </div>
+                    <div class="bg-black/80 p-2 border border-red-500 rounded">
+                        <div class="text-red-400 font-bold pixel-font text-xs sm:text-sm truncate" id="battle-enemy-name">BUG BOT</div>
+                        <div class="w-full bg-gray-800 h-3 sm:h-4 mt-2">
+                            <div id="battle-enemy-hp-bar" class="bg-red-500 h-full w-full transition-all duration-300"></div>
+                        </div>
+                        <div id="battle-enemy-hp-text" class="text-xs mt-1">50/50</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Question Panel (Responsive & Scrollable) -->
+            <div class="h-[60%] sm:h-[45%] bg-gray-900 border-t-4 border-purple-500 p-3 sm:p-6 flex flex-col z-50">
+                <div class="flex justify-between items-center mb-2 shrink-0">
+                    <div class="text-sm sm:text-xl text-purple-300 font-bold pixel-font">TERMINAL MERETAS...</div>
+                    <div class="flex items-center gap-3">
+                        <div id="battle-difficulty" class="text-xs pixel-font text-yellow-300 bg-yellow-900/40 border border-yellow-600 px-2 py-1 rounded">LVL 1</div>
+                        <div class="text-xl sm:text-3xl font-bold text-yellow-400 pixel-font" id="battle-timer">15</div>
+                    </div>
+                </div>
+                
+                <!-- Question Text Area -->
+                <div id="battle-question" class="text-sm sm:text-base mb-3 bg-black p-3 border border-gray-700 rounded text-green-400 font-mono shadow-inner overflow-y-auto min-h-[60px] max-h-[120px] shrink-0">
+                    System.out.println("Memuat soal...");
+                </div>
+                
+                <!-- Options Area -->
+                <div id="battle-options" class="grid grid-cols-1 sm:grid-cols-2 gap-2 flex-grow overflow-y-auto pb-2">
+                    <!-- Options generated via JS -->
+                </div>
+            </div>
+            
+            <!-- Battle Alert Overlay (Damage/Effect) -->
+            <div id="battle-alert" class="hidden absolute inset-0 flex items-center justify-center pointer-events-none z-[60]">
+                <div id="battle-alert-text" class="pixel-font text-4xl sm:text-6xl text-white drop-shadow-[0_0_10px_#000] scale-150 transition-transform"></div>
+            </div>
+        </div>
+
+        <!-- FULL SCREEN MESSAGES (Game Over / Stage Clear / Ending) -->
+        <div id="screen-message" class="hidden absolute inset-0 bg-black/90 z-[70] flex flex-col items-center justify-center p-6 text-center">
+            <h1 id="msg-title" class="pixel-font text-4xl sm:text-5xl mb-6 glow-text-red">SYSTEM FAILURE</h1>
+            <p id="msg-desc" class="text-lg sm:text-xl text-gray-300 mb-8 max-w-lg">Programmer telah gugur. Sistem dikuasai oleh AI rusak.</p>
+            <button id="msg-btn" class="btn-cyber py-3 px-8 pixel-font text-lg">REBOOT SYSTEM</button>
+        </div>
+    </div>
+
+    <script>
+        // --- CORE VARIABLES ---
+        const canvas = document.getElementById('game-canvas');
+        const ctx = canvas.getContext('2d');
+        
+        let width = window.innerWidth;
+        let height = window.innerHeight;
+        canvas.width = width;
+        canvas.height = height;
+
+        let gameState = 'MENU'; // MENU, DIALOG, EXPLORE, BATTLE, PAUSE, GAMEOVER, ENDING
+        let isAudioEnabled = true;
+        let lastTime = 0;
+        let animationId;
+
+        // Player Data
+        let player = {
+            name: "USER_01",
+            x: 0, y: 0, 
+            width: 36, height: 48, 
+            speed: 4.5,
+            hp: 100, maxHp: 100, 
+            level: 1, exp: 0, maxExp: 100, 
+            baseDamage: 25, healItems: 3,
+            color: '#00f3ff',
+            isWalking: false, walkCycle: 0
+        };
+
+        // Game World Data
+        let currentStageIndex = 0;
+        let mapWidth = 2000;
+        let mapHeight = 2000;
+        let camera = { x: 0, y: 0 };
+        let enemies = [];
+        let particles = [];
+        let mapDecorations = [];
+
+        const STAGES = [
+            { name: "Sektor 1: Kota Digital Runtuh", color: "#1a1a2e", lineColor: "#0f3460", bgm: "cyber", enemyCount: 5, bossColor: "#ff007f", minionColor: "#ff3333" },
+            { name: "Sektor 2: Laboratorium AI", color: "#001a1a", lineColor: "#004d4d", bgm: "lab", enemyCount: 7, bossColor: "#00ff66", minionColor: "#00cc55" },
+            { name: "Sektor 3: Gurun Cyber", color: "#2e1a00", lineColor: "#60340f", bgm: "desert", enemyCount: 10, bossColor: "#ff9900", minionColor: "#cc7a00" },
+            { name: "Sektor 4: Pabrik Robot", color: "#2e0000", lineColor: "#600000", bgm: "factory", enemyCount: 12, bossColor: "#ff0000", minionColor: "#cc0000" },
+            { name: "Sektor 5: Inti Server", color: "#1a0033", lineColor: "#4d0099", bgm: "boss", enemyCount: 15, bossColor: "#bc13fe", minionColor: "#9900cc" }
+        ];
+
+        // Educational Database - 50 Questions, 5 Difficulty Tiers (10 per stage)
+        // Tier 1 = Stage 1 (Beginner), Tier 5 = Stage 5 (Expert)
+        const QUESTIONS_BY_TIER = [
+            // --- TIER 1: STAGE 1 - Dasar Pemrograman (Beginner) ---
+            [
+                { q: "Apa output dari: <br><code>let x = 5; x = x + 2; console.log(x);</code>", options: ["5", "7", "2", "Error"], answer: 1 },
+                { q: "Tipe data untuk menyimpan teks/karakter disebut...", options: ["Integer", "Boolean", "String", "Float"], answer: 2 },
+                { q: "Bagaimana cara mendeklarasikan variabel konstanta di JavaScript?", options: ["let", "var", "const", "static"], answer: 2 },
+                { q: "Apa output dari: <br><code>10 % 3</code>", options: ["3", "1", "0", "10"], answer: 1 },
+                { q: "Jika <code>arr = [10, 20, 30]</code>, berapakah nilai <code>arr[0]</code>?", options: ["10", "20", "30", "Undefined"], answer: 0 },
+                { q: "Operator manakah yang digunakan untuk penugasan nilai?", options: ["==", "=", "===", "!="], answer: 1 },
+                { q: "Apa fungsi dari perintah <code>break</code> dalam loop?", options: ["Melanjutkan iterasi", "Menghentikan program", "Keluar dari loop", "Menghapus variabel"], answer: 2 },
+                { q: "Tipe data untuk nilai benar/salah disebut...", options: ["Integer", "Boolean", "String", "Float"], answer: 1 },
+                { q: "Manakah yang merupakan komentar satu baris di JavaScript?", options: ["/* komentar */", "# komentar", "// komentar", "<!-- komentar -->"], answer: 2 },
+                { q: "Apa output dari: <br><code>console.log(2 + 3 * 4);</code>", options: ["20", "14", "24", "10"], answer: 1 },
+            ],
+            // --- TIER 2: STAGE 2 - Kontrol Alur & Array ---
+            [
+                { q: "Manakah struktur perulangan yang mengeksekusi blok kode SETIDAKNYA SEKALI?", options: ["for", "while", "do-while", "foreach"], answer: 2 },
+                { q: "Jika <code>arr = [10, 20, 30]</code>, berapakah nilai <code>arr[1]</code>?", options: ["10", "20", "30", "Undefined"], answer: 1 },
+                { q: "Apa hasil dari operasi: <br><code>true && false</code>?", options: ["true", "false", "null", "1"], answer: 1 },
+                { q: "Kode <code>if (x > 5 && x < 10)</code> bernilai TRUE jika x adalah...", options: ["5", "7", "10", "12"], answer: 1 },
+                { q: "Operator manakah untuk membandingkan nilai DAN tipe data di JavaScript?", options: ["==", "=", "===", "!="], answer: 2 },
+                { q: "Apa fungsi dari <code>continue</code> dalam loop?", options: ["Keluar dari loop", "Lewati iterasi saat ini", "Ulangi loop dari awal", "Hentikan program"], answer: 1 },
+                { q: "Method array mana yang menambahkan elemen di akhir array?", options: ["pop()", "shift()", "push()", "unshift()"], answer: 2 },
+                { q: "Berapakah panjang array: <code>['a','b','c','d'].length</code>?", options: ["3", "4", "5", "0"], answer: 1 },
+                { q: "Apa output dari: <br><code>typeof 42</code>?", options: ["'integer'", "'number'", "'int'", "'float'"], answer: 1 },
+                { q: "Operator ternary <code>x > 5 ? 'besar' : 'kecil'</code> jika x=3 menghasilkan...", options: ["'besar'", "'kecil'", "true", "false"], answer: 1 },
+            ],
+            // --- TIER 3: STAGE 3 - Fungsi & Rekursi ---
+            [
+                { q: "Fungsi yang memanggil dirinya sendiri disebut fungsi...", options: ["Looping", "Iteratif", "Rekursif", "Dynamic"], answer: 2 },
+                { q: "Apa output dari fungsi rekursif faktorial(3)? (n * faktorial(n-1), base: faktorial(0)=1)", options: ["3", "6", "9", "1"], answer: 1 },
+                { q: "Dalam pemrograman, 'scope' variabel mengacu pada...", options: ["Ukuran variabel", "Jangkauan/visibilitas variabel", "Tipe variabel", "Nilai default variabel"], answer: 1 },
+                { q: "Apa yang dimaksud dengan 'Higher-Order Function'?", options: ["Fungsi dengan banyak parameter", "Fungsi yang menerima/mengembalikan fungsi lain", "Fungsi rekursif", "Fungsi dengan return value"], answer: 1 },
+                { q: "Method array mana yang membuat array baru dari hasil transformasi?", options: ["filter()", "forEach()", "map()", "reduce()"], answer: 2 },
+                { q: "Jika <code>A = 5, B = 10</code>. Menukar tanpa var ketiga: A=A+B; B=A-B; A = ?", options: ["A=A*B", "A=A-B", "A=B+A", "Error"], answer: 1 },
+                { q: "Apa yang dimaksud closure dalam JavaScript?", options: ["Fungsi yang dieksekusi langsung", "Fungsi yang mengakses variabel scope luar", "Fungsi tanpa parameter", "Fungsi async"], answer: 1 },
+                { q: "Method mana yang mengembalikan index pertama elemen yang ditemukan di array?", options: ["find()", "indexOf()", "includes()", "search()"], answer: 1 },
+                { q: "Apa output dari: <br><code>[1,2,3].reduce((acc,x) => acc+x, 0)</code>?", options: ["0", "6", "3", "Error"], answer: 1 },
+                { q: "Perbedaan 'parameter' dan 'argumen' dalam fungsi adalah...", options: ["Tidak ada bedanya", "Parameter di definisi, argumen saat pemanggilan", "Argumen di definisi, parameter saat pemanggilan", "Keduanya di definisi"], answer: 1 },
+            ],
+            // --- TIER 4: STAGE 4 - Struktur Data & Algoritma ---
+            [
+                { q: "Struktur data LIFO (Last In First Out) disebut...", options: ["Queue", "Tree", "Graph", "Stack"], answer: 3 },
+                { q: "Algoritma pencarian yang membagi array dua secara berulang disebut...", options: ["Linear Search", "Bubble Sort", "Binary Search", "Hash Search"], answer: 2 },
+                { q: "Kompleksitas waktu Binary Search adalah...", options: ["O(n)", "O(n²)", "O(log n)", "O(1)"], answer: 2 },
+                { q: "Struktur data FIFO (First In First Out) disebut...", options: ["Stack", "Tree", "Queue", "Heap"], answer: 2 },
+                { q: "Bubble Sort membandingkan elemen berurutan. Kompleksitas terburuknya adalah...", options: ["O(n)", "O(n log n)", "O(n²)", "O(1)"], answer: 2 },
+                { q: "Pada Binary Tree, node yang tidak punya anak disebut...", options: ["Root", "Branch", "Parent", "Leaf"], answer: 3 },
+                { q: "Algoritma manakah yang menggunakan strategi 'divide and conquer'?", options: ["Bubble Sort", "Selection Sort", "Merge Sort", "Linear Search"], answer: 2 },
+                { q: "Hash Table menyimpan data menggunakan...", options: ["Index berurutan", "Key-value dengan fungsi hash", "Binary tree", "Linked list"], answer: 1 },
+                { q: "Depth First Search (DFS) biasanya menggunakan struktur data...", options: ["Queue", "Heap", "Stack", "Array"], answer: 2 },
+                { q: "Breadth First Search (BFS) biasanya menggunakan struktur data...", options: ["Stack", "Queue", "Tree", "Graph"], answer: 1 },
+            ],
+            // --- TIER 5: STAGE 5 - OOP, Design Patterns & Advanced ---
+            [
+                { q: "Prinsip OOP yang menyembunyikan detail implementasi disebut...", options: ["Inheritance", "Polymorphism", "Encapsulation", "Abstraction"], answer: 2 },
+                { q: "Dalam OOP, 'Inheritance' memungkinkan sebuah class untuk...", options: ["Menyembunyikan data", "Mewarisi properti class lain", "Memiliki banyak method", "Membuat objek baru"], answer: 1 },
+                { q: "Design Pattern 'Singleton' memastikan sebuah class hanya memiliki...", options: ["Satu method", "Satu instance", "Satu atribut", "Satu constructor"], answer: 1 },
+                { q: "Apa yang dimaksud dengan 'Polymorphism' dalam OOP?", options: ["Banyak class dengan satu method", "Satu interface, banyak implementasi berbeda", "Satu class dengan banyak atribut", "Banyak constructor"], answer: 1 },
+                { q: "Pattern 'Observer' digunakan untuk...", options: ["Membuat satu objek global", "Notifikasi perubahan state ke banyak objek", "Mengoptimalkan query database", "Menyembunyikan logika bisnis"], answer: 1 },
+                { q: "Dalam paradigma Functional Programming, fungsi 'pure' berarti...", options: ["Fungsi cepat", "Output hanya bergantung pada input, tanpa side effects", "Fungsi rekursif", "Fungsi tanpa parameter"], answer: 1 },
+                { q: "SOLID principle 'S' (Single Responsibility) berarti...", options: ["Satu class, satu tanggung jawab", "Satu method per class", "Satu file per project", "Satu parameter per fungsi"], answer: 0 },
+                { q: "Apa yang dimaksud 'memoization' dalam optimasi algoritma?", options: ["Menyimpan state program", "Cache hasil komputasi untuk menghindari kalkulasi ulang", "Menghapus data lama", "Mengoptimalkan loop"], answer: 1 },
+                { q: "Big O notation O(1) berarti...", options: ["Satu operasi per detik", "Waktu eksekusi konstan, tidak bergantung ukuran input", "Satu iterasi loop", "Operasi terlambat"], answer: 1 },
+                { q: "Paradigma 'Event-Driven Programming' bekerja berdasarkan...", options: ["Urutan instruksi linear", "Kejadian/events yang memicu handler", "Rekursi mendalam", "Loop tak terbatas"], answer: 1 },
+            ]
+        ];
+
+        // Helper: get questions for current stage (tier)
+        function getQuestionsForStage(stageIndex) {
+            return QUESTIONS_BY_TIER[Math.min(stageIndex, 4)];
+        }
+
+        let currentEnemy = null;
+        let battleTimer = 0;
+        let battleInterval = null;
+        let correctAnswerIndex = 0;
+
+        // Input Setup
+        const keys = { w: false, a: false, s: false, d: false, ArrowUp:false, ArrowDown:false, ArrowLeft:false, ArrowRight:false };
+        const joystick = { active: false, dx: 0, dy: 0, originX: 0, originY: 0 };
+
+        // Story Texts
+        const STORY = [
+            [
+                { speaker: "SYSTEM.AI", text: "Peringatan! Sektor 1 dikuasai oleh Bug Bot." },
+                { speaker: "SYSTEM.AI", text: "Halo Programmer. Kami membutuhkan keahlian logikamu." },
+                { speaker: "SYSTEM.AI", text: "Retas mereka dengan algoritma yang tepat!" }
+            ],
+            [
+                { speaker: "SYSTEM.AI", text: "Kerja bagus! Namun Sektor 2: Laboratorium AI telah diretas." },
+                { speaker: "SYSTEM.AI", text: "Musuh di sini memiliki enkripsi yang lebih rumit." }
+            ],
+            [
+                { speaker: "SYSTEM.AI", text: "Memasuki Gurun Cyber. Suhu data sangat ekstrem." },
+                { speaker: "SYSTEM.AI", text: "Berhati-hatilah dengan algoritma usang yang ganas." }
+            ],
+            [
+                { speaker: "SYSTEM.AI", text: "Pabrik Robot. Di sinilah mereka memperbanyak diri." },
+                { speaker: "SYSTEM.AI", text: "Kita harus menghancurkan bos pabrik ini!" }
+            ],
+            [
+                { speaker: "SYSTEM.AI", text: "KITA SAMPAI. Inti Server." },
+                { speaker: "SYSTEM.AI", text: "MASTER AI ada di depan. Gunakan seluruh pengetahuan codingmu!" }
+            ]
+        ];
+        let currentDialogQueue = [];
+        let isTyping = false;
+
+        // --- STREAMING_CHUNK:Audio System (Tone.js)... ---
+        let synth, bgmSynth, noiseSynth;
+        let bgmLoop = null;
+
+        async function initAudio() {
+            if (!isAudioEnabled) return;
+            try {
+                await Tone.start();
+                
+                // Synth for SFX
+                synth = new Tone.PolySynth(Tone.Synth, {
+                    oscillator: { type: "square" },
+                    envelope: { attack: 0.01, decay: 0.2, sustain: 0.1, release: 0.5 }
+                }).toDestination();
+                synth.volume.value = -10;
+
+                // Synth for BGM
+                bgmSynth = new Tone.PolySynth(Tone.Synth, {
+                    oscillator: { type: "sawtooth" },
+                    envelope: { attack: 0.1, decay: 0.3, sustain: 0.4, release: 1 }
+                }).toDestination();
+                bgmSynth.volume.value = -20;
+
+                // Noise for explosions
+                noiseSynth = new Tone.NoiseSynth({
+                    noise: { type: 'white' },
+                    envelope: { attack: 0.005, decay: 0.3, sustain: 0, release: 0 }
+                }).toDestination();
+                noiseSynth.volume.value = -15;
+
+            } catch(e) {
+                console.log("Audio init failed, user needs to interact first.", e);
+            }
+        }
+
+        function playSFX(type) {
+            if (!isAudioEnabled || !synth) return;
+            if (Tone.context.state !== 'running') Tone.context.resume();
+            
+            const now = Tone.now();
+            switch(type) {
+                case 'click':
+                    synth.triggerAttackRelease("C5", "32n", now);
+                    break;
+                case 'hit':
+                    synth.triggerAttackRelease(["C3", "E3"], "16n", now);
+                    break;
+                case 'shoot':
+                    synth.triggerAttackRelease("G4", "8n", now);
+                    setTimeout(()=>synth.triggerAttackRelease("C4", "16n", Tone.now()), 100);
+                    break;
+                case 'correct':
+                    synth.triggerAttackRelease(["C5", "E5", "G5"], "8n", now);
+                    break;
+                case 'wrong':
+                    synth.triggerAttackRelease(["C3", "Gb2"], "4n", now);
+                    break;
+                case 'heal':
+                    synth.triggerAttackRelease(["E4", "G4", "C5", "E5"], "4n", now);
+                    break;
+                case 'explode':
+                    noiseSynth.triggerAttackRelease("8n", now);
+                    break;
+                case 'levelup':
+                    synth.triggerAttackRelease(["C4", "E4", "G4", "C5", "E5", "G5"], "2n", now);
+                    break;
+            }
+        }
+
+        function playBGM(stageIndex) {
+            if (!isAudioEnabled || !bgmSynth) return;
+            if (bgmLoop) { Tone.Transport.cancel(); bgmLoop.dispose(); }
+
+            let notes = [];
+            if (stageIndex === 0) notes = ["C3", "Eb3", "F3", "G3", "C3", "Bb2"];
+            else if (stageIndex === 1) notes = ["D3", "F3", "A3", "C4", "D3", "C3"];
+            else if (stageIndex === 2) notes = ["E3", "G3", "B3", "E4", "D4", "B3"];
+            else if (stageIndex === 3) notes = ["F2", "Ab2", "C3", "F3", "Eb3", "C3"];
+            else notes = ["C2", "C3", "G2", "Eb3", "C2", "Bb1"]; // Boss
+
+            let idx = 0;
+            bgmLoop = new Tone.Loop(time => {
+                bgmSynth.triggerAttackRelease(notes[idx], "8n", time);
+                idx = (idx + 1) % notes.length;
+            }, "4n");
+
+            Tone.Transport.start();
+            bgmLoop.start(0);
+        }
+
+        function stopBGM() {
+            Tone.Transport.stop();
+            if (bgmLoop) {
+                bgmLoop.dispose();
+                bgmLoop = null;
+            }
+        }
+
+        function toggleAudio() {
+            isAudioEnabled = !isAudioEnabled;
+            const btn = document.getElementById('btn-audio');
+            btn.innerText = isAudioEnabled ? "AUDIO: ON" : "AUDIO: OFF";
+            if(isAudioEnabled) initAudio();
+            else stopBGM();
+            playSFX('click');
+        }
+
+        // --- STREAMING_CHUNK:Game Initialization & Setup... ---
+        window.addEventListener('resize', () => {
+            width = window.innerWidth;
+            height = window.innerHeight;
+            canvas.width = width;
+            canvas.height = height;
+        });
+
+        async function startGame() {
+            const nameInput = document.getElementById('player-name-input').value.trim();
+            if(nameInput) player.name = nameInput;
+            
+            await initAudio(); // Start audio context on user click
+            playSFX('click');
+            
+            document.getElementById('screen-menu').classList.add('hidden');
+            currentStageIndex = 0;
+            player.hp = player.maxHp;
+            player.level = 1;
+            player.exp = 0;
+            player.maxExp = 100;
+            player.healItems = 3;
+            
+            initStage();
+            if (!animationId) gameLoop(0);
+        }
+
+        function initStage() {
+            const stage = STAGES[currentStageIndex];
+            
+            // Generate Map Decors
+            mapDecorations = [];
+            for(let i=0; i<100; i++) {
+                mapDecorations.push({
+                    x: Math.random() * mapWidth,
+                    y: Math.random() * mapHeight,
+                    size: Math.random() * 50 + 10,
+                    type: Math.floor(Math.random() * 3) // 0: square, 1: tall rect, 2: wide rect
+                });
+            }
+
+            // Generate Enemies
+            enemies = [];
+            for(let i=0; i<stage.enemyCount; i++) {
+                enemies.push(createEnemy(false, stage.minionColor));
+            }
+            // Add Boss
+            let boss = createEnemy(true, stage.bossColor);
+            boss.x = mapWidth - 200;
+            boss.y = mapHeight - 200;
+            enemies.push(boss);
+
+            // Reset Player Pos
+            player.x = 200;
+            player.y = 200;
+
+            updateHUD();
+            playBGM(currentStageIndex);
+            
+            // Queue Story Dialog
+            currentDialogQueue = [...STORY[currentStageIndex]];
+            startDialog();
+        }
+
+        function createEnemy(isBoss, color) {
+            const startX = Math.random() * (mapWidth - 400) + 200;
+            const startY = Math.random() * (mapHeight - 400) + 200;
+            return {
+                id: Math.random(),
+                x: startX,
+                y: startY,
+                width: isBoss ? 80 : 50,
+                height: isBoss ? 80 : 60,
+                isBoss: isBoss,
+                color: color,
+                hp: isBoss ? (currentStageIndex+1)*150 : (currentStageIndex+1)*40,
+                maxHp: isBoss ? (currentStageIndex+1)*150 : (currentStageIndex+1)*40,
+                damage: isBoss ? 20 + currentStageIndex*10 : 10 + currentStageIndex*5,
+                expReward: isBoss ? 150 : 30,
+                // Movement (minions only)
+                vx: isBoss ? 0 : (Math.random() - 0.5) * 2.5,
+                vy: isBoss ? 0 : (Math.random() - 0.5) * 2.5,
+                patrolTimer: Math.random() * 120,
+                chaseRange: isBoss ? 0 : 200 + currentStageIndex * 40,
+                speed: isBoss ? 0 : 1.2 + currentStageIndex * 0.3,
+                walkCycle: 0,
+            };
+        }
+
+        // --- STREAMING_CHUNK:Input Handling... ---
+        window.addEventListener('keydown', e => { 
+            if(keys.hasOwnProperty(e.key)) keys[e.key] = true; 
+        });
+        window.addEventListener('keyup', e => { 
+            if(keys.hasOwnProperty(e.key)) keys[e.key] = false; 
+        });
+
+        // Joystick Logic
+        const joystickArea = document.getElementById('joystick-area');
+        const stick = document.getElementById('joystick-stick');
+        const maxJoyRadius = 40;
+
+        function handleJoystickMove(x, y) {
+            const rect = joystickArea.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+            
+            let dx = x - centerX;
+            let dy = y - centerY;
+            let distance = Math.sqrt(dx*dx + dy*dy);
+            
+            if (distance > maxJoyRadius) {
+                dx = (dx / distance) * maxJoyRadius;
+                dy = (dy / distance) * maxJoyRadius;
+            }
+            
+            stick.style.transform = `translate(${dx}px, ${dy}px)`;
+            
+            joystick.active = true;
+            joystick.dx = dx / maxJoyRadius;
+            joystick.dy = dy / maxJoyRadius;
+        }
+
+        joystickArea.addEventListener('touchstart', e => {
+            e.preventDefault();
+            handleJoystickMove(e.touches[0].clientX, e.touches[0].clientY);
+        }, {passive: false});
+
+        joystickArea.addEventListener('touchmove', e => {
+            e.preventDefault();
+            handleJoystickMove(e.touches[0].clientX, e.touches[0].clientY);
+        }, {passive: false});
+
+        function resetJoystick() {
+            joystick.active = false;
+            joystick.dx = 0;
+            joystick.dy = 0;
+            stick.style.transform = `translate(0px, 0px)`;
+        }
+        joystickArea.addEventListener('touchend', e => { e.preventDefault(); resetJoystick(); });
+        joystickArea.addEventListener('touchcancel', e => { e.preventDefault(); resetJoystick(); });
+
+        // Heal Button
+        document.getElementById('btn-heal').addEventListener('click', useHeal);
+        document.getElementById('btn-heal').addEventListener('touchstart', (e) => { e.preventDefault(); useHeal(); }, {passive: false});
+
+        window.addEventListener('keydown', e => {
+            if(e.key.toLowerCase() === 'h' && gameState === 'EXPLORE') useHeal();
+        });
+
+        function useHeal() {
+            if (player.healItems > 0 && player.hp < player.maxHp && gameState === 'EXPLORE') {
+                player.hp = Math.min(player.maxHp, player.hp + 50);
+                player.healItems--;
+                updateHUD();
+                playSFX('heal');
+                createParticles(player.x + player.width/2, player.y + player.height/2, '#00ff66', 15);
+            } else if (player.healItems <= 0) {
+                playSFX('wrong');
+            }
+        }
+
+        // --- STREAMING_CHUNK:Main Game Loop & Update... ---
+        function gameLoop(timestamp) {
+            let dt = timestamp - lastTime;
+            lastTime = timestamp;
+
+            update(dt);
+            draw();
+
+            animationId = requestAnimationFrame(gameLoop);
+        }
+
+        function update(dt) {
+            if (gameState !== 'EXPLORE') return;
+
+            // Player Movement
+            let dx = 0; let dy = 0;
+            
+            if (keys.w || keys.ArrowUp) dy -= 1;
+            if (keys.s || keys.ArrowDown) dy += 1;
+            if (keys.a || keys.ArrowLeft) dx -= 1;
+            if (keys.d || keys.ArrowRight) dx += 1;
+
+            if (joystick.active) {
+                dx = joystick.dx;
+                dy = joystick.dy;
+            } else if (dx !== 0 && dy !== 0) {
+                // Normalize keyboard diagonal
+                const length = Math.sqrt(dx*dx + dy*dy);
+                dx /= length;
+                dy /= length;
+            }
+
+            // Update Walk Cycle
+            if (dx !== 0 || dy !== 0) {
+                player.isWalking = true;
+                player.walkCycle += 0.2; // Speed of leg/arm swing
+            } else {
+                player.isWalking = false;
+                player.walkCycle = 0;
+            }
+
+            player.x += dx * player.speed;
+            player.y += dy * player.speed;
+
+            // Map Bounds
+            player.x = Math.max(0, Math.min(mapWidth - player.width, player.x));
+            player.y = Math.max(0, Math.min(mapHeight - player.height, player.y));
+
+            // Update Camera
+            camera.x = player.x + player.width/2 - width/2;
+            camera.y = player.y + player.height/2 - height/2;
+            camera.x = Math.max(0, Math.min(mapWidth - width, camera.x));
+            camera.y = Math.max(0, Math.min(mapHeight - height, camera.y));
+
+            // Collision with enemies
+            for (let i = 0; i < enemies.length; i++) {
+                let e = enemies[i];
+
+                // Enemy movement (minions only)
+                if (!e.isBoss) {
+                    const distX = player.x - e.x;
+                    const distY = player.y - e.y;
+                    const dist = Math.sqrt(distX * distX + distY * distY);
+
+                    if (dist < e.chaseRange) {
+                        // Chase player
+                        const nx = distX / dist;
+                        const ny = distY / dist;
+                        e.vx = nx * e.speed;
+                        e.vy = ny * e.speed;
+                        e.patrolTimer = 0;
+                    } else {
+                        // Patrol: random direction change
+                        e.patrolTimer--;
+                        if (e.patrolTimer <= 0) {
+                            const angle = Math.random() * Math.PI * 2;
+                            e.vx = Math.cos(angle) * (e.speed * 0.6);
+                            e.vy = Math.sin(angle) * (e.speed * 0.6);
+                            e.patrolTimer = 60 + Math.random() * 120;
+                        }
+                    }
+
+                    e.x += e.vx;
+                    e.y += e.vy;
+
+                    // Bounce off map bounds
+                    if (e.x < 50) { e.x = 50; e.vx = Math.abs(e.vx); }
+                    if (e.x > mapWidth - e.width - 50) { e.x = mapWidth - e.width - 50; e.vx = -Math.abs(e.vx); }
+                    if (e.y < 50) { e.y = 50; e.vy = Math.abs(e.vy); }
+                    if (e.y > mapHeight - e.height - 50) { e.y = mapHeight - e.height - 50; e.vy = -Math.abs(e.vy); }
+
+                    e.walkCycle += 0.15;
+                }
+
+                if (rectIntersect(player.x, player.y, player.width, player.height, e.x, e.y, e.width, e.height)) {
+                    startBattle(e, i);
+                    break;
+                }
+            }
+
+            // Update Particles
+            for(let i=particles.length-1; i>=0; i--) {
+                let p = particles[i];
+                p.x += p.vx; p.y += p.vy;
+                p.life -= 0.02;
+                if(p.life <= 0) particles.splice(i, 1);
+            }
+        }
+
+        function rectIntersect(x1, y1, w1, h1, x2, y2, w2, h2) {
+            return x1 < x2 + w2 && x1 + w1 > x2 && y1 < y2 + h2 && y1 + h1 > y2;
+        }
+
+        function createParticles(x, y, color, count) {
+            for(let i=0; i<count; i++) {
+                particles.push({
+                    x: x, y: y,
+                    vx: (Math.random() - 0.5) * 10,
+                    vy: (Math.random() - 0.5) * 10,
+                    life: 1.0,
+                    color: color,
+                    size: Math.random() * 4 + 2
+                });
+            }
+        }
+
+        // --- STREAMING_CHUNK:Rendering... ---
+        function draw() {
+            // Background
+            if (gameState === 'EXPLORE' || gameState === 'DIALOG') {
+                const stage = STAGES[currentStageIndex];
+                ctx.fillStyle = stage.color;
+                ctx.fillRect(0, 0, width, height);
+
+                ctx.save();
+                ctx.translate(-camera.x, -camera.y);
+
+                // Draw Grid/Decorations
+                ctx.strokeStyle = stage.lineColor;
+                ctx.lineWidth = 2;
+                mapDecorations.forEach(d => {
+                    ctx.strokeRect(d.x, d.y, d.size, d.type===1 ? d.size*2 : d.type===2 ? d.size*0.5 : d.size);
+                });
+
+                // Draw Particles
+                particles.forEach(p => {
+                    ctx.fillStyle = p.color;
+                    ctx.globalAlpha = Math.max(0, p.life);
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.size, 0, Math.PI*2);
+                    ctx.fill();
+                    ctx.globalAlpha = 1.0;
+                });
+
+                // Draw Player (Pixel Person Style)
+                drawPlayerEntity(player.x, player.y, player.width, player.height, player.color, player.isWalking, player.walkCycle);
+
+                // Draw Enemies (Robot Style)
+                enemies.forEach(e => {
+                    drawEnemyEntity(e.x, e.y, e.width, e.height, e.color, e.isBoss, e.walkCycle);
+                });
+
+                ctx.restore();
+            }
+        }
+
+        function drawPlayerEntity(px, py, pw, ph, color, isWalking, walkCycle) {
+            ctx.save();
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = color;
+            ctx.fillStyle = color;
+            
+            let cx = px + pw/2;
+            // Head
+            ctx.fillRect(cx - pw*0.3, py, pw*0.6, ph*0.3);
+            // Bandana/Visor (Pink)
+            ctx.fillStyle = "#ff007f";
+            ctx.fillRect(cx - pw*0.35, py + ph*0.1, pw*0.7, ph*0.08);
+            ctx.fillStyle = color;
+
+            // Body
+            ctx.fillRect(cx - pw*0.4, py + ph*0.35, pw*0.8, ph*0.35);
+            
+            // Arms
+            let armOffset = isWalking ? Math.sin(walkCycle) * (ph*0.1) : 0;
+            ctx.fillRect(cx - pw*0.55, py + ph*0.35 + armOffset, pw*0.15, ph*0.3);
+            ctx.fillRect(cx + pw*0.4, py + ph*0.35 - armOffset, pw*0.15, ph*0.3);
+            
+            // Legs
+            let legOffset = isWalking ? Math.sin(walkCycle) * (ph*0.15) : 0;
+            ctx.fillRect(cx - pw*0.3, py + ph*0.75 + legOffset, pw*0.25, ph*0.25 - legOffset);
+            ctx.fillRect(cx + pw*0.05, py + ph*0.75 - legOffset, pw*0.25, ph*0.25 + legOffset);
+            ctx.restore();
+        }
+
+        function drawEnemyEntity(ex, ey, ew, eh, color, isBoss, walkCycle) {
+            ctx.save();
+            ctx.shadowBlur = isBoss ? 25 : 15;
+            ctx.shadowColor = color;
+            ctx.fillStyle = color;
+            
+            let cx = ex + ew/2;
+
+            if (isBoss) {
+                // Boss Robot (Tank/Mecha) - static, imposing
+                ctx.fillRect(cx - ew*0.25, ey, ew*0.5, eh*0.25); // Head
+                // Eyes
+                ctx.fillStyle = "#fff";
+                ctx.fillRect(cx - ew*0.15, ey + eh*0.05, ew*0.1, eh*0.05);
+                ctx.fillRect(cx + ew*0.05, ey + eh*0.05, ew*0.1, eh*0.05);
+                ctx.fillStyle = color;
+                
+                ctx.fillRect(cx - ew*0.5, ey + eh*0.3, ew*1.0, eh*0.4); // Body
+                ctx.fillRect(cx - ew*0.6, ey + eh*0.3, ew*0.1, eh*0.5); // L Arm
+                ctx.fillRect(cx + ew*0.5, ey + eh*0.3, ew*0.1, eh*0.5); // R Arm
+                
+                // Treads / Base
+                ctx.fillRect(cx - ew*0.4, ey + eh*0.75, ew*0.3, eh*0.25);
+                ctx.fillRect(cx + ew*0.1, ey + eh*0.75, ew*0.3, eh*0.25);
+
+                // Pulsing glow aura for boss
+                ctx.globalAlpha = 0.2 + 0.1 * Math.sin(walkCycle || 0);
+                ctx.beginPath();
+                ctx.arc(cx, ey + eh*0.5, ew*0.8, 0, Math.PI*2);
+                ctx.fillStyle = color;
+                ctx.fill();
+                ctx.globalAlpha = 1;
+            } else {
+                // Minion Robot - animated legs/wheels
+                const bobY = Math.sin(walkCycle) * (eh * 0.05); // vertical bob
+
+                ctx.fillRect(cx - ew*0.3, ey + bobY, ew*0.6, eh*0.35); // Head
+                // Cyclops Eye (red when chasing)
+                const distToPlayer = Math.sqrt((player.x - ex)**2 + (player.y - ey)**2);
+                const isChasing = distToPlayer < (200 + currentStageIndex * 40);
+                ctx.fillStyle = isChasing ? "#ff2200" : "#fff";
+                ctx.fillRect(cx - ew*0.15, ey + eh*0.1 + bobY, ew*0.3, eh*0.1);
+                if (isChasing) {
+                    ctx.shadowColor = "#ff0000";
+                    ctx.shadowBlur = 10;
+                }
+                ctx.fillStyle = color;
+
+                ctx.fillRect(cx - ew*0.4, ey + eh*0.4 + bobY, ew*0.8, eh*0.3); // Body
+                
+                // Animated legs
+                const legSwing = Math.sin(walkCycle) * (eh * 0.08);
+                ctx.fillRect(cx - ew*0.3, ey + eh*0.72 + legSwing, ew*0.2, eh*0.2);  // L leg
+                ctx.fillRect(cx + ew*0.1,  ey + eh*0.72 - legSwing, ew*0.2, eh*0.2);  // R leg
+
+                // Wheel/track base
+                ctx.beginPath();
+                const wheelRot = walkCycle * 2;
+                ctx.save();
+                ctx.translate(cx, ey + eh*0.9);
+                ctx.rotate(wheelRot);
+                ctx.fillStyle = color;
+                ctx.fillRect(-ew*0.22, -ew*0.1, ew*0.44, ew*0.2);
+                ctx.restore();
+                ctx.beginPath();
+                ctx.arc(cx, ey + eh*0.9, ew*0.18, 0, Math.PI*2);
+                ctx.strokeStyle = color;
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            }
+            ctx.restore();
+        }
+
+        // --- STREAMING_CHUNK:Dialog System... ---
+        function startDialog() {
+            if (currentDialogQueue.length === 0) {
+                endDialog();
+                return;
+            }
+            gameState = 'DIALOG';
+            document.getElementById('ui-hud').classList.add('hidden');
+            document.getElementById('ui-controls').classList.add('hidden');
+            document.getElementById('screen-dialog').classList.remove('hidden');
+            
+            showNextDialog();
+        }
+
+        function showNextDialog() {
+            if (currentDialogQueue.length === 0) {
+                endDialog();
+                return;
+            }
+            const dialog = currentDialogQueue.shift();
+            document.getElementById('dialog-name').innerText = dialog.speaker;
+            
+            // Draw Portrait SVG based on speaker
+            const portrait = document.getElementById('dialog-portrait');
+            if(dialog.speaker === "SYSTEM.AI") {
+                portrait.innerHTML = `<circle cx="25" cy="25" r="15" fill="none" stroke="#00f3ff" stroke-width="2"/><circle cx="25" cy="25" r="5" fill="#00f3ff"/>`;
+            }
+
+            const textContainer = document.getElementById('dialog-text');
+            textContainer.innerHTML = '';
+            isTyping = true;
+            let i = 0;
+            
+            playSFX('click');
+
+            function typeWriter() {
+                if (i < dialog.text.length) {
+                    textContainer.innerHTML += dialog.text.charAt(i);
+                    i++;
+                    setTimeout(typeWriter, 30);
+                } else {
+                    isTyping = false;
+                }
+            }
+            typeWriter();
+        }
+
+        document.getElementById('screen-dialog').addEventListener('click', () => {
+            if (!isTyping) {
+                playSFX('click');
+                showNextDialog();
+            }
+        });
+
+        function endDialog() {
+            document.getElementById('screen-dialog').classList.add('hidden');
+            gameState = 'EXPLORE';
+            document.getElementById('ui-hud').classList.remove('hidden');
+            document.getElementById('ui-controls').classList.remove('hidden');
+        }
+
+        // --- STREAMING_CHUNK:Battle System... ---
+        function startBattle(enemy, index) {
+            gameState = 'BATTLE';
+            resetJoystick();
+            keys.w = keys.a = keys.s = keys.d = keys.ArrowUp = keys.ArrowDown = keys.ArrowLeft = keys.ArrowRight = false;
+            
+            currentEnemy = { ...enemy, index: index };
+            
+            document.getElementById('ui-hud').classList.add('hidden');
+            document.getElementById('ui-controls').classList.add('hidden');
+            document.getElementById('screen-battle').classList.remove('hidden');
+            
+            document.getElementById('battle-enemy-name').innerText = enemy.isBoss ? "MASTER AI" : "BUG BOT";
+            document.getElementById('battle-player-name').innerText = player.name;
+            
+            // Inject SVG for enemy sprite dynamically
+            const enemySvg = document.getElementById('enemy-svg');
+            enemySvg.style.filter = `drop-shadow(0 0 15px ${enemy.color})`;
+            
+            if (enemy.isBoss) {
+                enemySvg.innerHTML = `
+                    <rect x="25" y="10" width="50" height="25" fill="${enemy.color}"/>
+                    <rect x="35" y="15" width="10" height="10" fill="#fff"/><rect x="55" y="15" width="10" height="10" fill="#fff"/>
+                    <rect x="10" y="40" width="80" height="35" fill="${enemy.color}"/>
+                    <rect x="0" y="40" width="15" height="40" fill="${enemy.color}"/><rect x="85" y="40" width="15" height="40" fill="${enemy.color}"/>
+                    <rect x="20" y="80" width="25" height="20" fill="${enemy.color}"/><rect x="55" y="80" width="25" height="20" fill="${enemy.color}"/>
+                `;
+            } else {
+                enemySvg.innerHTML = `
+                    <rect x="30" y="20" width="40" height="25" fill="${enemy.color}"/>
+                    <rect x="35" y="25" width="30" height="10" fill="#fff"/>
+                    <rect x="20" y="50" width="60" height="30" fill="${enemy.color}"/>
+                    <circle cx="50" cy="90" r="10" fill="${enemy.color}"/>
+                `;
+            }
+
+            updateBattleUI();
+            playSFX('shoot'); // Engaged sound
+
+            // Show difficulty tier
+            const tierNames = ['PEMULA','MUDA','MENENGAH','MAHIR','MASTER'];
+            const tierColors = ['text-green-400','text-blue-400','text-yellow-400','text-orange-400','text-red-400'];
+            const diffEl = document.getElementById('battle-difficulty');
+            diffEl.innerText = `TIER ${currentStageIndex+1}: ${tierNames[currentStageIndex]}`;
+            diffEl.className = `text-xs pixel-font bg-black/40 border px-2 py-1 rounded border-current ${tierColors[currentStageIndex]}`;
+
+            generateQuestion();
+        }
+
+        function updateBattleUI() {
+            // Player
+            const pPct = Math.max(0, (player.hp / player.maxHp) * 100);
+            document.getElementById('battle-player-hp-bar').style.width = pPct + '%';
+            document.getElementById('battle-player-hp-text').innerText = `${player.hp}/${player.maxHp}`;
+            document.getElementById('battle-player-hp-bar').className = `h-full w-full transition-all duration-300 ${pPct > 50 ? 'bg-green-500' : pPct > 20 ? 'bg-yellow-500' : 'bg-red-500'}`;
+
+            // Enemy
+            const ePct = Math.max(0, (currentEnemy.hp / currentEnemy.maxHp) * 100);
+            document.getElementById('battle-enemy-hp-bar').style.width = ePct + '%';
+            document.getElementById('battle-enemy-hp-text').innerText = `${currentEnemy.hp}/${currentEnemy.maxHp}`;
+        }
+
+        function generateQuestion() {
+            const stageQuestions = getQuestionsForStage(currentStageIndex);
+            const q = stageQuestions[Math.floor(Math.random() * stageQuestions.length)];
+            correctAnswerIndex = q.answer;
+
+            document.getElementById('battle-question').innerHTML = q.q;
+            
+            const optsContainer = document.getElementById('battle-options');
+            optsContainer.innerHTML = '';
+            
+            const letters = ['A', 'B', 'C', 'D'];
+            q.options.forEach((opt, idx) => {
+                let btn = document.createElement('button');
+                btn.className = "btn-cyber py-2 px-3 sm:px-4 text-sm sm:text-base text-left font-mono relative group flex items-center min-h-[44px]";
+                btn.innerHTML = `<span class="text-purple-400 font-bold mr-2 shrink-0">[${letters[idx]}]</span> <span class="leading-tight">${opt}</span>`;
+                btn.onclick = () => answerQuestion(idx);
+                optsContainer.appendChild(btn);
+            });
+
+            // Set timer faster based on stage
+            battleTimer = 15 - (currentStageIndex * 1); 
+            document.getElementById('battle-timer').innerText = battleTimer;
+            document.getElementById('battle-timer').className = "text-xl sm:text-3xl font-bold text-yellow-400 pixel-font";
+
+            clearInterval(battleInterval);
+            battleInterval = setInterval(() => {
+                battleTimer--;
+                document.getElementById('battle-timer').innerText = battleTimer;
+                if (battleTimer <= 5) document.getElementById('battle-timer').classList.add('text-red-500');
+                
+                if (battleTimer <= 0) {
+                    clearInterval(battleInterval);
+                    processBattleTurn(false, "TIME OUT!");
+                }
+            }, 1000);
+        }
+
+        function answerQuestion(idx) {
+            clearInterval(battleInterval);
+            if (idx === correctAnswerIndex) {
+                processBattleTurn(true, "COMPILED!");
+            } else {
+                processBattleTurn(false, "SYNTAX ERROR!");
+            }
+        }
+
+        function processBattleTurn(isCorrect, msg) {
+            const alertBox = document.getElementById('battle-alert');
+            const alertText = document.getElementById('battle-alert-text');
+            const pSprite = document.getElementById('battle-player-sprite');
+            const eSprite = document.getElementById('battle-enemy-sprite');
+
+            alertBox.classList.remove('hidden');
+            alertText.innerText = msg;
+            alertText.className = `pixel-font text-3xl sm:text-5xl drop-shadow-[0_0_10px_#000] scale-100 transition-transform duration-200 ${isCorrect ? 'text-green-400' : 'text-red-500'}`;
+
+            if (isCorrect) {
+                playSFX('correct');
+                setTimeout(() => playSFX('hit'), 300);
+                
+                pSprite.classList.add('translate-x-10'); // Attack animation
+                setTimeout(() => pSprite.classList.remove('translate-x-10'), 300);
+                
+                // Flash enemy red
+                setTimeout(() => {
+                    document.getElementById('enemy-svg').style.filter = "drop-shadow(0 0 20px #f00) brightness(200%) hue-rotate(90deg)";
+                    setTimeout(() => document.getElementById('enemy-svg').style.filter = `drop-shadow(0 0 15px ${currentEnemy.color})`, 200);
+                }, 200);
+
+                const damage = player.baseDamage + (Math.random() * 10);
+                currentEnemy.hp = Math.floor(currentEnemy.hp - damage);
+                
+            } else {
+                playSFX('wrong');
+                setTimeout(() => playSFX('hit'), 300);
+                
+                eSprite.classList.add('-translate-x-10');
+                setTimeout(() => eSprite.classList.remove('-translate-x-10'), 300);
+
+                const damage = currentEnemy.damage + (Math.random() * 5);
+                player.hp = Math.floor(player.hp - damage);
+            }
+
+            updateBattleUI();
+
+            setTimeout(() => {
+                alertBox.classList.add('hidden');
+                checkBattleState();
+            }, 1500);
+        }
+
+        function checkBattleState() {
+            if (player.hp <= 0) {
+                gameOver();
+            } else if (currentEnemy.hp <= 0) {
+                playSFX('explode');
+                // Remove enemy
+                enemies.splice(currentEnemy.index, 1);
+                createParticles(currentEnemy.x + currentEnemy.width/2, currentEnemy.y + currentEnemy.height/2, currentEnemy.color, 30);
+                
+                // Gain EXP
+                player.exp += currentEnemy.expReward;
+                checkLevelUp();
+                
+                endBattle();
+
+                if (currentEnemy.isBoss) {
+                    stageClear();
+                }
+            } else {
+                generateQuestion();
+            }
+        }
+
+        function checkLevelUp() {
+            if (player.exp >= player.maxExp) {
+                player.level++;
+                player.exp = player.exp - player.maxExp;
+                player.maxExp = Math.floor(player.maxExp * 1.5);
+                player.maxHp += 20;
+                player.hp = player.maxHp;
+                player.baseDamage += 10;
+                playSFX('levelup');
+            }
+            updateHUD();
+        }
+
+        function endBattle() {
+            gameState = 'EXPLORE';
+            document.getElementById('screen-battle').classList.add('hidden');
+            document.getElementById('ui-hud').classList.remove('hidden');
+            document.getElementById('ui-controls').classList.remove('hidden');
+        }
+
+        // --- STREAMING_CHUNK:UI Updates & Screens... ---
+        function updateHUD() {
+            document.getElementById('hud-name').innerText = player.name;
+            document.getElementById('hud-level').innerText = player.level;
+            document.getElementById('hud-stage').innerText = currentStageIndex + 1;
+            
+            const hpPct = Math.max(0, (player.hp / player.maxHp) * 100);
+            document.getElementById('hud-hp-bar').style.width = hpPct + '%';
+            document.getElementById('hud-hp-bar').className = `h-full transition-all duration-300 ${hpPct > 50 ? 'bg-green-500' : hpPct > 20 ? 'bg-yellow-500' : 'bg-red-500'}`;
+            document.getElementById('hud-hp-text').innerText = `${player.hp}/${player.maxHp}`;
+            
+            const expPct = (player.exp / player.maxExp) * 100;
+            document.getElementById('hud-exp-bar').style.width = expPct + '%';
+
+            document.getElementById('hud-heal-count').innerText = `x${player.healItems}`;
+        }
+
+        function gameOver() {
+            gameState = 'GAMEOVER';
+            stopBGM();
+            playSFX('explode');
+            document.getElementById('screen-battle').classList.add('hidden');
+            document.getElementById('ui-hud').classList.add('hidden');
+            document.getElementById('ui-controls').classList.add('hidden');
+            
+            const msgScreen = document.getElementById('screen-message');
+            msgScreen.classList.remove('hidden');
+            document.getElementById('msg-title').innerText = "SYSTEM FAILURE";
+            document.getElementById('msg-title').className = "pixel-font text-4xl sm:text-5xl mb-6 glow-text-red";
+            document.getElementById('msg-desc').innerText = "Programmer gagal menyelesaikan kompilasi. Dunia digital runtuh.";
+            document.getElementById('msg-btn').innerText = "REBOOT SYSTEM";
+            document.getElementById('msg-btn').onclick = () => location.reload();
+        }
+
+        function stageClear() {
+            gameState = 'ENDING';
+            stopBGM();
+            playSFX('levelup');
+            document.getElementById('ui-hud').classList.add('hidden');
+            document.getElementById('ui-controls').classList.add('hidden');
+            
+            const msgScreen = document.getElementById('screen-message');
+            msgScreen.classList.remove('hidden');
+            
+            currentStageIndex++;
+            if (currentStageIndex >= STAGES.length) {
+                // Game Beat
+                document.getElementById('msg-title').innerText = "SYSTEM RESTORED!";
+                document.getElementById('msg-title').className = "pixel-font text-4xl sm:text-5xl mb-6 glow-text-green";
+                document.getElementById('msg-desc').innerHTML = `Selamat, <b>${player.name}</b>!<br><br>Kamu telah membersihkan seluruh sektor dari Master AI dan menyelamatkan dunia digital. Algoritmamu tidak tertandingi!`;
+                document.getElementById('msg-btn').innerText = "KEMBALI KE TERMINAL";
+                document.getElementById('msg-btn').onclick = () => location.reload();
+            } else {
+                // Next Stage
+                document.getElementById('msg-title').innerText = "SECTOR CLEARED";
+                document.getElementById('msg-title').className = "pixel-font text-4xl sm:text-5xl mb-6 glow-text-blue";
+                document.getElementById('msg-desc').innerText = "Bos sektor berhasil diretas. Bersiap memasuki area selanjutnya...";
+                document.getElementById('msg-btn').innerText = "LANJUTKAN PROSES";
+                document.getElementById('msg-btn').onclick = () => {
+                    msgScreen.classList.add('hidden');
+                    player.hp = player.maxHp; // Heal full on stage clear
+                    player.healItems++; // Bonus heal item
+                    initStage();
+                };
+            }
+        }
+
+        // Tutorial / Menu Overlays
+        function showTutorial() { document.getElementById('screen-tutorial').classList.remove('hidden'); playSFX('click'); }
+        function hideTutorial() { document.getElementById('screen-tutorial').classList.add('hidden'); playSFX('click'); }
+        
+        function pauseGame() {
+            if(gameState === 'EXPLORE') {
+                gameState = 'PAUSE';
+                document.getElementById('msg-title').innerText = "PAUSED";
+                document.getElementById('msg-title').className = "pixel-font text-4xl mb-6 text-white";
+                document.getElementById('msg-desc').innerText = "Proses dihentikan sementara.";
+                document.getElementById('msg-btn').innerText = "RESUME";
+                document.getElementById('msg-btn').onclick = () => {
+                    document.getElementById('screen-message').classList.add('hidden');
+                    gameState = 'EXPLORE';
+                    lastTime = performance.now();
+                };
+                document.getElementById('screen-message').classList.remove('hidden');
+            }
+        }
+
+    </script>
+</body>
+</html>
